@@ -1,8 +1,8 @@
 **/*-gem5*
 **/*-instrumented
 **/*.llvm
+**/*_trace.gz
 **/dddg_parse_progress.out
-**/dynamic_trace.gz
 **/full.s
 **/labelmap
 **/out*

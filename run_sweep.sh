@@ -8,7 +8,7 @@ do_sweep () {
     cd ..
 }
 
-declare -a acc=("canny_non_max_spad"
+declare -a acc=("canny_non_max_cache"  "canny_non_max_spad"
                 "edge_tracking_cache"  "edge_tracking_spad"
                 "elem_matrix_cache"    "elem_matrix_spad"
                 "grayscale_cache"      "grayscale_spad"
