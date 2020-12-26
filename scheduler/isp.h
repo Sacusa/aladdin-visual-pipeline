@@ -10,14 +10,13 @@
  * P P P P
  */
 
-void isp(uint8_t *input_image_host, uint8_t output_image_host[IMG_HEIGHT][IMG_HEIGHT][3],
-        uint8_t *input_image_acc, uint8_t output_image_acc[IMG_HEIGHT][IMG_HEIGHT][3],
-        int input_image_size, int output_image_size) {
+void isp(uint8_t *input_image_host, uint8_t output_image_host[IMG_HEIGHT][IMG_WIDTH][3],
+        uint8_t *input_image_acc, uint8_t output_image_acc[IMG_HEIGHT][IMG_WIDTH][3]) {
     enum channels { R=0, G, B };
     float ccm[3] = {255/142, 196/255, 1};
     float gamma = 0.416667;
 
-    dmaLoad(input_image_acc, input_image_host, input_image_size);
+    dmaLoad(input_image_acc, input_image_host, (IMG_HEIGHT+2) * (IMG_WIDTH+2));
 
     for (int i = 0; i < IMG_HEIGHT; i += 2) {
         loop: for (int j = 0; j < IMG_WIDTH; j += 2) {
@@ -86,5 +85,5 @@ void isp(uint8_t *input_image_host, uint8_t output_image_host[IMG_HEIGHT][IMG_HE
         }
     }
 
-    dmaStore(output_image_host, output_image_acc, output_image_size);
+    dmaStore(output_image_host, output_image_acc, IMG_HEIGHT * IMG_WIDTH * 3);
 }

@@ -7,35 +7,30 @@
 
 #include "scheduler.h"
 
-#define NUM_IMAGES 10
+#define NUM_IMAGES 1
 #define NUM_LEVELS (7 + (NUM_IMAGES-1))
 
 typedef struct {
-    // ISP
-    uint8_t *raw_img;
-    uint8_t *isp_img;
+    // input image
+    float *input_img;
 
-    // Grayscale
-    uint8_t *grayscale_img;
+    // convolution of ut with P
+    float *ut_P;
 
-    // Noise reduction
-    float *denoise_img;
+    // division of d by ut_P
+    float *d_ut_P;
 
-    // Gradient calculation
-    float *I_x, *I_y, *I_xx, *I_yy, *I_xx_yy;
-    float *gradient, *theta;
+    // multiplication of d_ut_P with P*
+    float *div_P;
 
-    // Non-maxmimum suppression
-    uint8_t *max_values;
-
-    // Edge tracking
-    uint8_t *final_img;
+    // estimate after one iteration
+    float *estimate;
 } image_data_t;
 
 task_struct *pipeline[MAX_LEVELS][MAX_REQS];
 int req_index[MAX_LEVELS];
 
-void process_raw(image_data_t *img, int level)
+void step1(image_data_t *img, int level)
 {
     task_struct *task;
     isp_args *args;
@@ -104,15 +99,23 @@ void gradient_calculation(image_data_t *img, int level)
     err |= posix_memalign((void**)&img->I_x,  CACHELINE_SIZE, size);
     err |= posix_memalign((void**)&img->I_y,  CACHELINE_SIZE, size);
     err |= posix_memalign((void**)&img->I_xx, CACHELINE_SIZE, size);
-    err |= posix_memalign((void**)&img->I_yy, CACHELINE_SIZE, size);
+    err |= posix_memalign((void**)&img->I_xy, CACHELINE_SIZE, size);
     err |= posix_memalign((void**)&img->I_xx_yy,  CACHELINE_SIZE, size);
     err |= posix_memalign((void**)&img->gradient, CACHELINE_SIZE, size);
     err |= posix_memalign((void**)&img->theta,    CACHELINE_SIZE, size);
     assert(err == 0 && "Failed to allocate memory");
 
     // TODO: Convolution
-    memset(img->I_x, 0, size);
-    memset(img->I_y, 0, size);
+    memset(img->I-x, 0, size);
+    memset(img->I-y, 0, size);
+
+    elem_matrix(I_x,  NULL, I_xx,    0, SQR);
+    elem_matrix(I_y,  NULL, I_yy,    0, SQR);
+    elem_matrix(I_y, I_x, theta, 0, ATAN2);
+
+    elem_matrix(I_xx, I_yy, I_xx_yy, 0, ADD);
+
+    elem_matrix(I_xx_yy, NULL, gradient, 0, SQRT);
 
     args[0]->arg1 = img->I_x;
     args[0]->arg2 = NULL;
@@ -170,7 +173,7 @@ void non_max_suppression(image_data_t *img, int level)
     err |= posix_memalign((void**)&img->max_values, CACHELINE_SIZE, NUM_PIXELS);
     assert(err == 0 && "Failed to allocate memory");
 
-    args->hypotenuse = img->gradient;
+    args->gradient = img->gradient;
     args->theta = img->theta;
     args->result = img->max_values;
 
@@ -193,7 +196,7 @@ void thr_and_edge_tracking(image_data_t *img, int level)
     assert(err == 0 && "Failed to allocate memory");
 
     args->input_image = img->max_values;
-    args->output_image = img->final_img;
+    args->output_img = img->final_img;
 
     task->acc_id = ACC_EDGE_TRACKING;
     task->acc_args = (void*) args;

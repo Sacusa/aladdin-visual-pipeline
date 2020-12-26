@@ -1,5 +1,5 @@
-#define WEAK         25
-#define STRONG       255
+#define WEAK   25
+#define STRONG 255
 
 void edge_tracking(uint8_t *input_image, uint8_t thr_weak, uint8_t thr_strong,
         uint8_t *output_image) {

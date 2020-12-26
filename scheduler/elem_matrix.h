@@ -2,13 +2,6 @@
  * No padding required
  */
 
-enum operation {
-    ADD, SUB,
-    MUL, DIV,
-    SQR, SQRT,
-    ATAN2
-};
-
 void elem_matrix(float *arg1, float *arg2, float *result,
         uint8_t is_arg2_scalar, uint8_t op) {
     const float threehalfs = 1.5F;

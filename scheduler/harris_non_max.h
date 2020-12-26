@@ -1,18 +1,13 @@
-#define HDIM(x,y) (((x)*width) + (y))
-#define MDIM(x,y) (((x)*IMG_WIDTH) + (y))
-
 /**
- * Padding
- * Each dimension needs to be a multiple of 3
+ * No padding needed
  */
 
 void harris_non_max(float *harris_response_host, uint8_t *max_values_host,
-                    float *harris_response_acc,  uint8_t *max_values_acc,
-                    int harris_response_size, int max_values_size) {
-    dmaLoad(harris_response_acc, harris_response_host, harris_response_size);
+                    float *harris_response_acc,  uint8_t *max_values_acc) {
+    int height = IMG_HEIGHT - (IMG_HEIGHT % 3);
+    int width  = IMG_WIDTH  - (IMG_WIDTH  % 3);
 
-    int height = IMG_HEIGHT + 3 - (IMG_HEIGHT % 3);
-    int width  = IMG_WIDTH  + 3 - (IMG_WIDTH  % 3);
+    dmaLoad(harris_response_acc, harris_response_host, height*width*4);
 
     for (int i = 0; i < height; i += 3) {
         img_loop: for (int j = 0; j < width; j += 3) {
@@ -20,6 +15,8 @@ void harris_non_max(float *harris_response_host, uint8_t *max_values_host,
             float max_value = 0;
 
             for (int ii = 0; ii < 3; ii++) {
+                for (int jj = 0; jj < 3; jj++) {
+                    float value = harris_response_acc[DIM(i+ii, j+jj)];
                     if (value > max_value) {
                         max_i = ii;
                         max_j = jj;
@@ -30,7 +27,7 @@ void harris_non_max(float *harris_response_host, uint8_t *max_values_host,
 
             w_loop1: for (int ii = 0; ii < 3; ii++) {
                 w_loop2: for (int jj = 0; jj < 3; jj++) {
-                    int index = MDIM(i+ii, j+jj);
+                    int index = DIM(i+ii, j+jj);
                     if ((ii == max_i) && (jj == max_j)) {
                         max_values_acc[index] = 255;
                     } else {
@@ -41,5 +38,7 @@ void harris_non_max(float *harris_response_host, uint8_t *max_values_host,
         }
     }
 
-    dmaStore(max_values_host, max_values_acc, max_values_size);
+    // TODO: handle last row/column
+
+    dmaStore(max_values_host, max_values_acc, height*width);
 }

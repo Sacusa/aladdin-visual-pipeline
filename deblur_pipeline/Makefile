@@ -1,15 +1,13 @@
 ACCEL_NAME = canny
-SRCS = canny.c scheduler.c
+SRCS = canny.c
 BMARK_SPECIFIC_CFLAGS=-DDMA_INTERFACE_V3
-export WORKLOAD=isp
+export WORKLOAD=edge_tracking
 
 include ../common/Makefile.tracer
 include ../common/Makefile.gem5
 
-all: build
+build: gem5 dma-trace-binary
 	./canny-instrumented
 
-build: gem5 dma-trace-binary
-
 clean: clean-gem5 clean-trace
-	rm -rf dddg_parse_progress.out stdout.gz out* *_trace.gz
+	rm -rf dddg_parse_progress.out stdout.gz out*
