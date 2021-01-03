@@ -27,21 +27,19 @@ int main() {
     THTA_TYPE *theta;
     OUT_TYPE *result;
 
-    const int hypotenuse_size = sizeof(HYPO_TYPE) * (IMG_WIDTH+2) * (IMG_HEIGHT+2);
+    const int hypotenuse_size = sizeof(HYPO_TYPE) * NUM_PIXELS;
     const int theta_size = sizeof(THTA_TYPE) * NUM_PIXELS;
     const int result_size = sizeof(OUT_TYPE) * NUM_PIXELS;
 
-    int err = posix_memalign(
-        (void**)&hypotenuse, CACHELINE_SIZE, hypotenuse_size);
-    err |= posix_memalign(
-        (void**)&theta, CACHELINE_SIZE, theta_size);
-    err |= posix_memalign(
-        (void**)&result, CACHELINE_SIZE, result_size);
+    int err = 0;
+    err |= posix_memalign((void**)&hypotenuse, CACHELINE_SIZE, hypotenuse_size);
+    err |= posix_memalign((void**)&theta,      CACHELINE_SIZE, theta_size);
+    err |= posix_memalign((void**)&result,     CACHELINE_SIZE, result_size);
     assert(err == 0 && "Failed to allocate memory!");
 
     for (int i = 0; i < IMG_HEIGHT; i++) {
         for (int j = 0; j < IMG_WIDTH; j++) {
-            hypotenuse[HYPO_DIM(i,j)] = 128;
+            hypotenuse[DIM(i,j)] = 128;
             theta[DIM(i,j)] = 0.7854;
         }
     }

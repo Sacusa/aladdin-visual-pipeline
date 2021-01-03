@@ -15,6 +15,7 @@ int test_output(OUT_TYPE *result) {
 
     for (int i = 0; i < NUM_PIXELS; i++) {
         if (result[i] != 128) {
+            printf("ERROR: i=%d, j=%d, expected=128, got=%d\n", i/IMG_WIDTH, i%IMG_WIDTH, result[i]);
             num_failures++;
         }
     }
@@ -30,27 +31,26 @@ int main() {
     THTA_TYPE *theta_acc;
     OUT_TYPE *result_acc;
 
-    const int hypotenuse_size = sizeof(HYPO_TYPE) * (IMG_WIDTH+2) * (IMG_HEIGHT+2);
+    const int hypotenuse_size = sizeof(HYPO_TYPE) * NUM_PIXELS;
     const int theta_size = sizeof(THTA_TYPE) * NUM_PIXELS;
     const int result_size = sizeof(OUT_TYPE) * NUM_PIXELS;
+    const int spad_size = (SPAD_ROWS + 2) * IMG_WIDTH;
 
-    int err = posix_memalign(
-        (void**)&hypotenuse_host, CACHELINE_SIZE, hypotenuse_size);
-    err |= posix_memalign(
-        (void**)&theta_host, CACHELINE_SIZE, theta_size);
-    err |= posix_memalign(
-        (void**)&result_host, CACHELINE_SIZE, result_size);
-    err |= posix_memalign(
-        (void**)&hypotenuse_acc, CACHELINE_SIZE, hypotenuse_size);
-    err |= posix_memalign(
-        (void**)&theta_acc, CACHELINE_SIZE, theta_size);
-    err |= posix_memalign(
-        (void**)&result_acc, CACHELINE_SIZE, result_size);
+    int err = 0;
+    err |= posix_memalign((void**)&hypotenuse_host, CACHELINE_SIZE, hypotenuse_size);
+    err |= posix_memalign((void**)&theta_host,      CACHELINE_SIZE, theta_size);
+    err |= posix_memalign((void**)&result_host,     CACHELINE_SIZE, result_size);
+    err |= posix_memalign((void**)&hypotenuse_acc,  CACHELINE_SIZE,
+            spad_size * sizeof(HYPO_TYPE));
+    err |= posix_memalign((void**)&theta_acc,       CACHELINE_SIZE,
+            spad_size * sizeof(THTA_TYPE));
+    err |= posix_memalign((void**)&result_acc,      CACHELINE_SIZE,
+            spad_size * sizeof(OUT_TYPE));
     assert(err == 0 && "Failed to allocate memory!");
 
     for (int i = 0; i < IMG_HEIGHT; i++) {
         for (int j = 0; j < IMG_WIDTH; j++) {
-            hypotenuse_host[HYPO_DIM(i,j)] = 128;
+            hypotenuse_host[DIM(i,j)] = 128;
             theta_host[DIM(i,j)] = 0.7854;
         }
     }
@@ -65,8 +65,7 @@ int main() {
     fprintf(stdout, "Accelerator finished!\n");
 #else
     canny_non_max(hypotenuse_host, theta_host, result_host,
-            hypotenuse_acc, theta_acc, result_acc,
-            hypotenuse_size, theta_size, result_size);
+            hypotenuse_acc, theta_acc, result_acc);
 #endif
 
     int num_failures = test_output(result_host);

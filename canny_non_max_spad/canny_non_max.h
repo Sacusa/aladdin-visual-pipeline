@@ -1,59 +1,83 @@
-#define HYPO_TYPE     uint8_t
-#define THTA_TYPE     float
-#define OUT_TYPE      uint8_t
-#define IMG_WIDTH     128
-#define IMG_HEIGHT    128
-#define PI            3.141592653589793238462643
-#define HYPO_DIM(x,y) (IMG_WIDTH + 3 + ((x)*2) + ((x)*IMG_WIDTH) + (y))
-#define DIM(x,y)      (((x)*IMG_WIDTH) + (y))
+#define HYPO_TYPE  uint8_t
+#define THTA_TYPE  float
+#define OUT_TYPE   uint8_t
+#define IMG_WIDTH  128
+#define IMG_HEIGHT 128
+#define PI         3.141592653589793238462643
+#define DIM(x,y)   (((x)*IMG_WIDTH) + (y))
+
+// every row requires 0.75 KB of storage
+// make sure there is at least 2.25 KB of scratchpad
+#define SPAD_SIZE_IN_KB 9
+#define SPAD_ROWS ((int)((SPAD_SIZE_IN_KB / 0.75) - 2))
 
 void canny_non_max(HYPO_TYPE *hypotenuse_host, THTA_TYPE *theta_host, OUT_TYPE *result_host,
-        HYPO_TYPE *hypotenuse_acc, THTA_TYPE *theta_acc, OUT_TYPE *result_acc,
-        int hypotenuse_size, int theta_size, int result_size) {
-    dmaLoad(hypotenuse_acc, hypotenuse_host, hypotenuse_size);
-    dmaLoad(theta_acc, theta_host, theta_size);
+        HYPO_TYPE *hypotenuse_acc, THTA_TYPE *theta_acc, OUT_TYPE *result_acc) {
+    int max_height = IMG_HEIGHT - 1, max_width = IMG_WIDTH - 1;
+    int num_iters = (IMG_HEIGHT / SPAD_ROWS) + ((IMG_HEIGHT % SPAD_ROWS) != 0);
 
-    for (int i = 0; i < IMG_HEIGHT; i++) {
-        loop: for (int j = 0; j < IMG_WIDTH; j++) {
-            HYPO_TYPE q = 255, r = 255;
-            int index = DIM(i,j), hypo_index = HYPO_DIM(i,j);
+    for (int iter = 0; iter < num_iters; iter++) {
+        int block_offset = (iter * SPAD_ROWS * IMG_WIDTH) - IMG_WIDTH;
+        int block_size = (SPAD_ROWS + 2) * IMG_WIDTH;
 
-            THTA_TYPE angle = theta_acc[index] * 180 / PI;
-            if (angle < 0) { angle += 180; }
+        int start_img_i = iter * SPAD_ROWS;
+        int end_img_i = start_img_i + SPAD_ROWS;
 
-            // angle 0
-            if (((angle >= 0)     && (angle < 22.5)) ||
-                ((angle >= 157.5) && (angle <= 180))) {
-                q = hypotenuse_acc[HYPO_DIM(i,j+1)];
-                r = hypotenuse_acc[HYPO_DIM(i,j-1)];
-            }
+        if (block_offset < 0) {
+            block_offset = 0;
+            block_size -= IMG_WIDTH;
+        }
 
-            // angle 45
-            else if ((angle >= 22.5) && (angle < 67.5)) {
-                q = hypotenuse_acc[HYPO_DIM(i+1,j-1)];
-                r = hypotenuse_acc[HYPO_DIM(i-1,j+1)];
-            }
+        if (end_img_i >= IMG_HEIGHT) {
+            end_img_i = IMG_HEIGHT;
+            block_size = (end_img_i - start_img_i + 1) * IMG_WIDTH;
+        }
 
-            // angle 90
-            else if ((angle >= 67.5) && (angle < 112.5)) {
-                q = hypotenuse_acc[HYPO_DIM(i+1,j)];
-                r = hypotenuse_acc[HYPO_DIM(i-1,j)];
-            }
+        dmaLoad(hypotenuse_acc, &hypotenuse_host[block_offset], block_size * sizeof(HYPO_TYPE));
+        dmaLoad(theta_acc,      &theta_host[block_offset],      block_size * sizeof(THTA_TYPE));
 
-            // angle 135
-            else if ((angle >= 112.5) && (angle < 157.5)) {
-                q = hypotenuse_acc[HYPO_DIM(i-1,j-1)];
-                r = hypotenuse_acc[HYPO_DIM(i+1,j+1)];
-            }
+        for (int img_i = start_img_i, i = (iter == 0) ? 0 : 1; img_i < end_img_i; img_i++, i++) {
+            loop: for (int j = 0; j < IMG_WIDTH; j++) {
+                float q = 0, r = 0;
+                int index = DIM(i,j);
 
-            if ((hypotenuse_acc[hypo_index] >= q) && (hypotenuse_acc[hypo_index] >= r)) {
-                result_acc[index] = hypotenuse_acc[hypo_index];
-            }
-            else {
-                result_acc[index] = 0;
+                float angle = theta_acc[index] * 180 / PI;
+                if (angle < 0) { angle += 180; }
+
+                // angle 0
+                if (((angle >= 0)     && (angle < 22.5)) ||
+                    ((angle >= 157.5) && (angle <= 180))) {
+                    q = (j == max_width) ? 0 : hypotenuse_acc[DIM(i,j+1)];
+                    r = (j == 0)         ? 0 : hypotenuse_acc[DIM(i,j-1)];
+                }
+
+                // angle 45
+                else if ((angle >= 22.5) && (angle < 67.5)) {
+                    q = ((img_i == max_height) || (j == 0)) ? 0 : hypotenuse_acc[DIM(i+1,j-1)];
+                    r = ((img_i == 0) || (j == max_width))  ? 0 : hypotenuse_acc[DIM(i-1,j+1)];
+                }
+
+                // angle 90
+                else if ((angle >= 67.5) && (angle < 112.5)) {
+                    q = (img_i == max_height) ? 0 : hypotenuse_acc[DIM(i+1,j)];
+                    r = (img_i == 0)          ? 0 : hypotenuse_acc[DIM(i-1,j)];
+                }
+
+                // angle 135
+                else if ((angle >= 112.5) && (angle < 157.5)) {
+                    q = ((img_i == 0)          || (j == 0))         ? 0 : hypotenuse_acc[DIM(i-1,j-1)];
+                    r = ((img_i == max_height) || (j == max_width)) ? 0 : hypotenuse_acc[DIM(i+1,j+1)];
+                }
+
+                if ((hypotenuse_acc[index] >= q) && (hypotenuse_acc[index] >= r)) {
+                    result_acc[index] = (uint8_t) hypotenuse_acc[index];
+                }
+                else {
+                    result_acc[index] = 0;
+                }
             }
         }
-    }
 
-    dmaStore(result_host, result_acc, result_size);
+        dmaStore(&result_host[block_offset], result_acc, block_size * sizeof(OUT_TYPE));
+    }
 }
