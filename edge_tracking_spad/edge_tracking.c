@@ -8,7 +8,6 @@
 #include "edge_tracking.h"
 
 #define CACHELINE_SIZE 64
-#define NUM_PIXELS (IMG_WIDTH * IMG_HEIGHT)
 
 int test_output(TYPE *output_image) {
     int num_failures = 0;
@@ -27,34 +26,27 @@ int main() {
     TYPE *input_image_acc = NULL;
     TYPE *output_image_acc = NULL;
 
-    // input image needs to be padded, hence the +2
-    const int input_image_size = sizeof(TYPE) * (IMG_WIDTH+2) * (IMG_HEIGHT+2);
-    const int output_image_size = sizeof(TYPE) * NUM_PIXELS;
+    const int image_size = sizeof(TYPE) * NUM_PIXELS;
 
-    int err = posix_memalign(
-        (void**)&input_image_host, CACHELINE_SIZE, input_image_size);
-    err |= posix_memalign(
-        (void**)&output_image_host, CACHELINE_SIZE, output_image_size);
-    err |= posix_memalign(
-        (void**)&input_image_acc, CACHELINE_SIZE, input_image_size);
-    err |= posix_memalign(
-        (void**)&output_image_acc, CACHELINE_SIZE, output_image_size);
+    int err = 0;
+    err |= posix_memalign((void**)&input_image_host,  CACHELINE_SIZE, image_size);
+    err |= posix_memalign((void**)&output_image_host, CACHELINE_SIZE, image_size);
+    err |= posix_memalign((void**)&input_image_acc,   CACHELINE_SIZE, image_size);
+    err |= posix_memalign((void**)&output_image_acc,  CACHELINE_SIZE, image_size);
     assert(err == 0 && "Failed to allocate memory!");
 
-    // the value in the padding doesn't matter as long as it is not STRONG
-    memset(input_image_host, 128, input_image_size);
+    memset(input_image_host, 128, image_size);
 
 #ifdef GEM5_HARNESS
-    mapArrayToAccelerator(0, "input_image_host",  input_image_host,  input_image_size);
-    mapArrayToAccelerator(0, "output_image_host", output_image_host, output_image_size);
+    mapArrayToAccelerator(0, "input_image_host",  input_image_host,  image_size);
+    mapArrayToAccelerator(0, "output_image_host", output_image_host, image_size);
 
     fprintf(stdout, "Invoking accelerator!\n");
     invokeAcceleratorAndBlock(0);
     fprintf(stdout, "Accelerator finished!\n");
 #else
     edge_tracking(input_image_host, input_image_acc, 75, 150,
-            output_image_host, output_image_acc,
-            input_image_size, output_image_size);
+            output_image_host, output_image_acc);
 #endif
 
     int num_failures = test_output(output_image_host);
