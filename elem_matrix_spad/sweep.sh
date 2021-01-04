@@ -1,19 +1,18 @@
 #!/bin/bash
 
 declare -a lane=("1" "2" "4" "8" "16")
+declare -a spad_size=("2064" "4128" "8256" "16512" "33024" "66048")
 declare -a spad_part=("1" "2" "4" "8" "16")
 
 mkdir -p sweep
 
 for l in "${lane[@]}"; do
-    sed -i '/unrolling,elem_matrix,loop/c\unrolling,elem_matrix,loop,'"${l}"'' elem_matrix.cfg
+    for ss in "${spad_size[@]}"; do
+        for sp in "${spad_part[@]}"; do
+            ./set_config ${l} ${ss} ${sp}
 
-    for sp in "${spad_part[@]}"; do
-        sed -i '/partition,cyclic,arg1/c\partition,cyclic,arg1_acc,65536,4,'"${sp}"'' elem_matrix.cfg
-        sed -i '/partition,cyclic,arg2/c\partition,cyclic,arg2_acc,65536,4,'"${sp}"'' elem_matrix.cfg
-        sed -i '/partition,cyclic,result/c\partition,cyclic,result_acc,65536,4,'"${sp}"'' elem_matrix.cfg
-
-        sh run.sh
-        mv stdout.gz sweep/stdout_l_${l}_sp_${sp}.gz
+            sh run.sh
+            mv stdout.gz sweep/stdout_l_${l}_ss_$((ss/1024))_sp_${sp}.gz
+        done
     done
 done

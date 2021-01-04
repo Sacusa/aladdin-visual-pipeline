@@ -24,25 +24,20 @@ int main() {
     TYPE *mat_arg2_acc = NULL;
     TYPE *mat_res_acc  = NULL;
 
-    const int mat_size = NUM_ELEMS * sizeof(TYPE);
+    const int mat_size = NUM_PIXELS * sizeof(TYPE);
 
-    int err = posix_memalign(
-        (void**)&mat_arg1_host, CACHELINE_SIZE, mat_size);
-    err |= posix_memalign(
-        (void**)&mat_arg2_host, CACHELINE_SIZE, mat_size);
-    err |= posix_memalign(
-        (void**)&mat_res_host,  CACHELINE_SIZE, mat_size);
-    err |= posix_memalign(
-        (void**)&mat_arg1_acc,  CACHELINE_SIZE, mat_size);
-    err |= posix_memalign(
-        (void**)&mat_arg2_acc,  CACHELINE_SIZE, mat_size);
-    err |= posix_memalign(
-        (void**)&mat_res_acc,   CACHELINE_SIZE, mat_size);
+    int err = 0;
+    err |= posix_memalign((void**)&mat_arg1_host, CACHELINE_SIZE, mat_size);
+    err |= posix_memalign((void**)&mat_arg2_host, CACHELINE_SIZE, mat_size);
+    err |= posix_memalign((void**)&mat_res_host,  CACHELINE_SIZE, mat_size);
+    err |= posix_memalign((void**)&mat_arg1_acc,  CACHELINE_SIZE, mat_size);
+    err |= posix_memalign((void**)&mat_arg2_acc,  CACHELINE_SIZE, mat_size);
+    err |= posix_memalign((void**)&mat_res_acc,   CACHELINE_SIZE, mat_size);
     assert(err == 0 && "Failed to allocate memory!");
 
-    for (int i = 0; i < NUM_ELEMS; i++) {
-        mat_arg1_host[i] = 128;
-        mat_arg2_host[i] = 64;
+    for (int i = 0; i < NUM_PIXELS; i++) {
+        mat_arg1_host[i] = 1;
+        mat_arg2_host[i] = 1;
     }
 
 #ifdef GEM5_HARNESS
@@ -55,12 +50,13 @@ int main() {
     fprintf(stdout, "Accelerator finished!\n");
 #else
     elem_matrix(mat_arg1_host, mat_arg2_host, mat_res_host,
-        mat_arg1_acc, mat_arg2_acc, mat_res_acc, mat_size, 0, MUL);
+        mat_arg1_acc, mat_arg2_acc, mat_res_acc, 0, ATAN2);
 #endif
 
     int num_errors = 0;
-    for (int i = 0; i < NUM_ELEMS; i++) {
-        if (mat_res_host[i] != 8192) {
+    for (int i = 0; i < NUM_PIXELS; i++) {
+        if (fabs(mat_res_host[i] - 0.785398) > 0.0001) {  // ATAN2
+        //if (fabs(mat_res_host[i] - 1.0) > 0.0001) {  // MUL
             num_errors++;
         }
     }

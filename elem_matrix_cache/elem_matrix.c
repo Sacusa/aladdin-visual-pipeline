@@ -1,5 +1,4 @@
 #include <assert.h>
-#include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -26,8 +25,8 @@ int main() {
     assert(err == 0 && "Failed to allocate memory!");
 
     for (int i = 0; i < NUM_ELEMS; i++) {
-        mat_arg1[i] = 128;
-        mat_arg2[i] = 64;
+        mat_arg1[i] = 1;
+        mat_arg2[i] = 1;
     }
 
 #ifdef GEM5_HARNESS
@@ -39,12 +38,13 @@ int main() {
     invokeAcceleratorAndBlock(0);
     fprintf(stdout, "Accelerator finished!\n");
 #else
-    elem_matrix(mat_arg1, mat_arg2, mat_res, 0, MUL);
+    elem_matrix(mat_arg1, mat_arg2, mat_res, 0, ATAN2);
 #endif
 
     int num_errors = 0;
     for (int i = 0; i < NUM_ELEMS; i++) {
-        if (mat_res[i] != 8192) {
+        if (fabs(mat_res[i] - 0.785398) > 0.0001) {  // ATAN2
+        //if (fabs(mat_res[i] - 1.0) > 0.0001) {  // MUL
             num_errors++;
         }
     }
