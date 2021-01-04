@@ -10,10 +10,12 @@ num_lanes=$1
 total_spad_size=$2
 spad_parts=$3
 
-size_in_bytes=$((total_spad_size * 1024))
-hypo_spad_size=$((size_in_bytes / 6))
-thta_spad_size=$((4 * size_in_bytes / 6))
-out_spad_size=$((size_in_bytes / 6))
+size_in_bytes=$(bc <<< "scale=2;${total_spad_size} * 1024")
+size_in_bytes=${size_in_bytes%%.00}
+size_in_bytes=${size_in_bytes%%.0}
+thta_spad_size=$((4 * ((size_in_bytes - 256) / 6)))
+out_spad_size=$((thta_spad_size / 4))
+hypo_spad_size=$((size_in_bytes - thta_spad_size - out_spad_size))
 
 sed -i '/unrolling,canny_non_max,loop/c\unrolling,canny_non_max,loop,'"${num_lanes}"'' canny_non_max.cfg
 
