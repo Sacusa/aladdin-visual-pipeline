@@ -34,24 +34,26 @@ int main() {
     const int hypotenuse_size = sizeof(HYPO_TYPE) * NUM_PIXELS;
     const int theta_size = sizeof(THTA_TYPE) * NUM_PIXELS;
     const int result_size = sizeof(OUT_TYPE) * NUM_PIXELS;
-    const int spad_size = (SPAD_ROWS + 2) * IMG_WIDTH;
+
+    const int h_spad_size = H_SPAD_DIM * H_SPAD_DIM;
+    const int tr_spad_size = TR_SPAD_DIM * TR_SPAD_DIM;
 
     int err = 0;
     err |= posix_memalign((void**)&hypotenuse_host, CACHELINE_SIZE, hypotenuse_size);
     err |= posix_memalign((void**)&theta_host,      CACHELINE_SIZE, theta_size);
     err |= posix_memalign((void**)&result_host,     CACHELINE_SIZE, result_size);
     err |= posix_memalign((void**)&hypotenuse_acc,  CACHELINE_SIZE,
-            spad_size * sizeof(HYPO_TYPE));
+            h_spad_size * sizeof(HYPO_TYPE));
     err |= posix_memalign((void**)&theta_acc,       CACHELINE_SIZE,
-            spad_size * sizeof(THTA_TYPE));
+            tr_spad_size * sizeof(THTA_TYPE));
     err |= posix_memalign((void**)&result_acc,      CACHELINE_SIZE,
-            spad_size * sizeof(OUT_TYPE));
+            tr_spad_size * sizeof(OUT_TYPE));
     assert(err == 0 && "Failed to allocate memory!");
 
     for (int i = 0; i < IMG_HEIGHT; i++) {
         for (int j = 0; j < IMG_WIDTH; j++) {
-            hypotenuse_host[DIM(i,j)] = 128;
-            theta_host[DIM(i,j)] = 0.7854;
+            hypotenuse_host[IMG_DIM(i,j)] = 128;
+            theta_host[IMG_DIM(i,j)] = 0.7854;
         }
     }
 
