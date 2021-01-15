@@ -6,7 +6,7 @@
 #define PI         3.141592653589793238462643
 
 #define TR_SPAD_DIM 100
-#define H_SPAD_DIM  (TR_SPAD_DIM  + 2)
+#define H_SPAD_DIM  (TR_SPAD_DIM + 2)
 
 #define IMG_DIM(x,y) (((x)*IMG_WIDTH)   + (y))
 #define H_DIM(x,y)   (((x)*H_SPAD_DIM)  + (y))
@@ -26,9 +26,30 @@ void canny_non_max(HYPO_TYPE *hypotenuse_host, THTA_TYPE *theta_host, OUT_TYPE *
         int tr_spad_width  = ((start_img_j + TR_SPAD_DIM) > IMG_WIDTH) ?
                              (IMG_WIDTH - start_img_j) : TR_SPAD_DIM;
 
-        int h_spad_width = tr_spad_width + (start_img_j == 0) +
-                           ((start_img_j+tr_spad_width) < max_width);
-        h_spad_width -= (start_img_j == 0) ? 0 : 1;
+        int h_spad_width;
+        if (start_img_j == 0) {
+            h_spad_width = tr_spad_width + 1;
+        }
+        else {
+            h_spad_width = tr_spad_width;
+            if ((start_img_j + 1 + h_spad_width) > IMG_WIDTH) {
+                h_spad_width = IMG_WIDTH - start_img_j - 1;
+            }
+        }
+
+        // load the upper buffer row
+        if (start_img_i > 0) {
+            if (start_img_j > 0) {
+                hypotenuse_acc[H_DIM(0,0)] = hypotenuse_acc[H_DIM(0,H_SPAD_DIM-2)];
+                hypotenuse_acc[H_DIM(0,1)] = hypotenuse_acc[H_DIM(0,H_SPAD_DIM-1)];
+            }
+
+            if (h_spad_width > 0) {
+                dmaLoad(&hypotenuse_acc[H_DIM(0, 1 + (start_img_j > 0))],
+                        &hypotenuse_host[IMG_DIM(start_img_i-1, start_img_j+(start_img_j>0))],
+                        h_spad_width * sizeof(HYPO_TYPE));
+            }
+        }
 
         for (int i = 0; i < tr_spad_height; i++) {
             if (start_img_j > 0) {
@@ -38,12 +59,30 @@ void canny_non_max(HYPO_TYPE *hypotenuse_host, THTA_TYPE *theta_host, OUT_TYPE *
 
             if (h_spad_width > 0) {
                 dmaLoad(&hypotenuse_acc[H_DIM(i+1, 1 + (start_img_j > 0))],
-                        &hypotenuse_host[IMG_DIM(start_img_i+i, start_img_j)],
+                        &hypotenuse_host[IMG_DIM(start_img_i+i, start_img_j+(start_img_j>0))],
                         h_spad_width * sizeof(HYPO_TYPE));
             }
+
             dmaLoad(&theta_acc[i*TR_SPAD_DIM],
                     &theta_host[IMG_DIM(start_img_i+i, start_img_j)],
                     tr_spad_width * sizeof(THTA_TYPE));
+        }
+
+        // load the lower buffer row
+        if ((start_img_i + tr_spad_height) < max_height) {
+            if (start_img_j > 0) {
+                hypotenuse_acc[H_DIM(tr_spad_height+1,0)] =
+                    hypotenuse_acc[H_DIM(tr_spad_height+1,H_SPAD_DIM-2)];
+                hypotenuse_acc[H_DIM(H_SPAD_DIM-1,1)] =
+                    hypotenuse_acc[H_DIM(tr_spad_height+1,H_SPAD_DIM-1)];
+            }
+
+            if (h_spad_width > 0) {
+                dmaLoad(&hypotenuse_acc[H_DIM(tr_spad_height+1, 1 + (start_img_j > 0))],
+                        &hypotenuse_host[IMG_DIM(start_img_i+tr_spad_height,
+                            start_img_j+(start_img_j>0))],
+                        h_spad_width * sizeof(HYPO_TYPE));
+            }
         }
 
         for (int img_i = start_img_i, h_i = 1, tr_i = 0; tr_i < tr_spad_height;
