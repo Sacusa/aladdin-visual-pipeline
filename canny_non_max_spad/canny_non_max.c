@@ -15,7 +15,7 @@ int test_output(OUT_TYPE *result) {
 
     for (int i = 0; i < NUM_PIXELS; i++) {
         if (result[i] != 128) {
-            printf("ERROR: i=%d, j=%d, expected=128, got=%d\n", i/IMG_WIDTH, i%IMG_WIDTH, result[i]);
+            //printf("ERROR: i=%d, j=%d, expected=128, got=%d\n", i/IMG_WIDTH, i%IMG_WIDTH, result[i]);
             num_failures++;
         }
     }
@@ -35,8 +35,8 @@ int main() {
     const int theta_size = sizeof(THTA_TYPE) * NUM_PIXELS;
     const int result_size = sizeof(OUT_TYPE) * NUM_PIXELS;
 
-    const int h_spad_size = H_SPAD_DIM * H_SPAD_DIM;
-    const int tr_spad_size = TR_SPAD_DIM * TR_SPAD_DIM;
+    const int h_spad_size = H_SPAD_WIDTH * H_SPAD_HEIGHT * 2;
+    const int tr_spad_size = TR_SPAD_WIDTH * TR_SPAD_HEIGHT * 2;
 
     int err = 0;
     err |= posix_memalign((void**)&hypotenuse_host, CACHELINE_SIZE, hypotenuse_size);
