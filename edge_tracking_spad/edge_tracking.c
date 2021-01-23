@@ -31,8 +31,10 @@ int main() {
     int err = 0;
     err |= posix_memalign((void**)&input_image_host,  CACHELINE_SIZE, image_size);
     err |= posix_memalign((void**)&output_image_host, CACHELINE_SIZE, image_size);
-    err |= posix_memalign((void**)&input_image_acc,   CACHELINE_SIZE, image_size);
-    err |= posix_memalign((void**)&output_image_acc,  CACHELINE_SIZE, image_size);
+    err |= posix_memalign((void**)&input_image_acc,   CACHELINE_SIZE,
+            IN_SPAD_WIDTH * IN_SPAD_HEIGHT * 2);
+    err |= posix_memalign((void**)&output_image_acc,  CACHELINE_SIZE,
+            OUT_SPAD_WIDTH * OUT_SPAD_HEIGHT * 2);
     assert(err == 0 && "Failed to allocate memory!");
 
     memset(input_image_host, 128, image_size);
