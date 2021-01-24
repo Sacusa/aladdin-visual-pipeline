@@ -25,14 +25,15 @@ int main() {
     TYPE *mat_res_acc  = NULL;
 
     const int mat_size = NUM_PIXELS * sizeof(TYPE);
+    const int spad_size = IMG_WIDTH * IMG_HEIGHT * 2 * sizeof(TYPE);
 
     int err = 0;
     err |= posix_memalign((void**)&mat_arg1_host, CACHELINE_SIZE, mat_size);
     err |= posix_memalign((void**)&mat_arg2_host, CACHELINE_SIZE, mat_size);
     err |= posix_memalign((void**)&mat_res_host,  CACHELINE_SIZE, mat_size);
-    err |= posix_memalign((void**)&mat_arg1_acc,  CACHELINE_SIZE, mat_size);
-    err |= posix_memalign((void**)&mat_arg2_acc,  CACHELINE_SIZE, mat_size);
-    err |= posix_memalign((void**)&mat_res_acc,   CACHELINE_SIZE, mat_size);
+    err |= posix_memalign((void**)&mat_arg1_acc,  CACHELINE_SIZE, spad_size);
+    err |= posix_memalign((void**)&mat_arg2_acc,  CACHELINE_SIZE, spad_size);
+    err |= posix_memalign((void**)&mat_res_acc,   CACHELINE_SIZE, spad_size);
     assert(err == 0 && "Failed to allocate memory!");
 
     for (int i = 0; i < NUM_PIXELS; i++) {
@@ -57,6 +58,7 @@ int main() {
     for (int i = 0; i < NUM_PIXELS; i++) {
         if (fabs(mat_res_host[i] - 0.785398) > 0.0001) {  // ATAN2
         //if (fabs(mat_res_host[i] - 1.0) > 0.0001) {  // MUL
+            printf("ERROR: i = %d, expected = 0.785398, got = %f\n", i, mat_res_host[i]);
             num_errors++;
         }
     }
