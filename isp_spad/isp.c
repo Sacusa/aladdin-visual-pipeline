@@ -10,7 +10,7 @@
 
 #define CACHELINE_SIZE 64
 
-int test_output(TYPE output_image_host[IMG_HEIGHT][IMG_HEIGHT][3]) {
+int test_output(TYPE output_image_host[IMG_HEIGHT][IMG_WIDTH][3]) {
     int num_failures = 0;
     for (int i = 0; i < IMG_HEIGHT; i++) {
         for (int j = 0; j < IMG_WIDTH; j++) {
@@ -42,9 +42,9 @@ int main() {
     err |= posix_memalign(
         (void**)&output_image_host, CACHELINE_SIZE, output_image_size);
     err |= posix_memalign(
-        (void**)&input_image_acc, CACHELINE_SIZE, input_image_size);
+        (void**)&input_image_acc, CACHELINE_SIZE, IN_SPAD_WIDTH * IN_SPAD_HEIGHT * 2);
     err |= posix_memalign(
-        (void**)&output_image_acc, CACHELINE_SIZE, output_image_size);
+        (void**)&output_image_acc, CACHELINE_SIZE, OUT_SPAD_WIDTH * OUT_SPAD_HEIGHT * 6);
     assert(err == 0 && "Failed to allocate memory!");
 
     memset(input_image_host, 128, input_image_size);
@@ -57,8 +57,7 @@ int main() {
     invokeAcceleratorAndBlock(0);
     fprintf(stdout, "Accelerator finished!\n");
 #else
-    isp(input_image_host, output_image_host, input_image_acc, output_image_acc,
-            input_image_size, output_image_size);
+    isp(input_image_host, output_image_host, input_image_acc, output_image_acc);
 #endif
 
     int num_failures = test_output(output_image_host);

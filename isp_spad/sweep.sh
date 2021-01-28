@@ -3,16 +3,22 @@
 declare -a lane=("1" "2" "4" "8" "16")
 declare -a spad_part=("1" "2" "4" "8" "16")
 
+# = SPAD size in KB =   2.01    3.96    7.98    15.98   32.01   63.99
+declare -a spad_size=(  "2"     "4"     "8"     "16"    "32"    "64")
+declare -a spad_width=( "20"    "22"    "38"    "50"    "72"    "90")
+declare -a spad_height=("12"    "22"    "26"    "40"    "56"    "90")
+
 mkdir -p sweep
 
 for l in "${lane[@]}"; do
-    sed -i '/unrolling,isp,loop/c\unrolling,isp,loop,'"${l}"'' isp.cfg
+    for ((ss=0;ss<="${#spad_size[@]}";ss++)); do
+        for sp in "${spad_part[@]}"; do
+            ./set_config.sh ${l} ${spad_width[${ss}]} ${spad_height[${ss}]} ${sp}
+            make clean
+            make build
 
-    for sp in "${spad_part[@]}"; do
-        sed -i '/partition,cyclic,input/c\partition,cyclic,input_image_acc,16900,1,'"${sp}"'' isp.cfg
-        sed -i '/partition,cyclic,output/c\partition,cyclic,output_image_acc,49152,1,'"${sp}"'' isp.cfg
-
-        sh run.sh
-        mv stdout.gz sweep/stdout_l_${l}_sp_${sp}.gz
+            sh run.sh
+            mv stdout.gz sweep/stdout_l_${l}_ss_${spad_size[${ss}]}_sp_${sp}.gz
+        done
     done
 done
