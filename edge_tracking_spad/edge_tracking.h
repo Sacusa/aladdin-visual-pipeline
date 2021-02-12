@@ -5,8 +5,8 @@
 #define WEAK       25
 #define STRONG     255
 
-#define OUT_SPAD_WIDTH 49
-#define OUT_SPAD_HEIGHT 49
+#define OUT_SPAD_WIDTH 50
+#define OUT_SPAD_HEIGHT 39
 #define IN_SPAD_WIDTH   (OUT_SPAD_WIDTH  + 2)
 #define IN_SPAD_HEIGHT  (OUT_SPAD_HEIGHT + 2)
 

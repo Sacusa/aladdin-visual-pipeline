@@ -5,8 +5,8 @@
 #define GAMMA 0.416667
 
 // OUT_SPAD_WIDTH and HEIGHT must be even
-#define OUT_SPAD_WIDTH 72
-#define OUT_SPAD_HEIGHT 56
+#define OUT_SPAD_WIDTH 20
+#define OUT_SPAD_HEIGHT 12
 #define IN_SPAD_WIDTH   (OUT_SPAD_WIDTH  + 2)
 #define IN_SPAD_HEIGHT  (OUT_SPAD_HEIGHT + 2)
 

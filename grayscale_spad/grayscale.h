@@ -3,8 +3,8 @@
 #define IMG_HEIGHT 128
 #define NUM_PIXELS (IMG_WIDTH * IMG_HEIGHT)
 
-#define SPAD_WIDTH 16
-#define SPAD_HEIGHT 16
+#define SPAD_WIDTH 128
+#define SPAD_HEIGHT 64
 
 #define IMG_DIM(x,y)      (((x)*IMG_WIDTH)    +  (y))
 #define OUT_SPAD_DIM(x,y) (((x)*SPAD_WIDTH)   +  (y))

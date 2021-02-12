@@ -5,11 +5,8 @@
 #define IMG_HEIGHT 128
 #define PI         3.141592653589793238462643
 
-//#define TR_SPAD_DIM 37
-//#define H_SPAD_DIM  (TR_SPAD_DIM + 2)
-
-#define TR_SPAD_WIDTH 95
-#define TR_SPAD_HEIGHT 57
+#define TR_SPAD_WIDTH 67
+#define TR_SPAD_HEIGHT 20
 #define H_SPAD_WIDTH  (TR_SPAD_WIDTH  + 2)
 #define H_SPAD_HEIGHT (TR_SPAD_HEIGHT + 2)
 

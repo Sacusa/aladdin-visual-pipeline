@@ -10,13 +10,13 @@ declare -a spad_height=("12"    "22"    "26"    "40"    "56"    "90")
 
 mkdir -p sweep
 
-for l in "${lane[@]}"; do
-    for ((ss=0;ss<="${#spad_size[@]}";ss++)); do
+for ((ss=0;ss<"${#spad_size[@]}";ss++)); do
+    ./set_config.sh 1 ${spad_width[${ss}]} ${spad_height[${ss}]} 1
+    make clean
+    make build
+    for l in "${lane[@]}"; do
         for sp in "${spad_part[@]}"; do
             ./set_config.sh ${l} ${spad_width[${ss}]} ${spad_height[${ss}]} ${sp}
-            make clean
-            make build
-
             sh run.sh
             mv stdout.gz sweep/stdout_l_${l}_ss_${spad_size[${ss}]}_sp_${sp}.gz
         done

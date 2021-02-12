@@ -2,38 +2,32 @@
 #define IMG_WIDTH  128
 #define IMG_HEIGHT 128
 #define NUM_PIXELS (IMG_WIDTH * IMG_HEIGHT)
-#define IN_DIM(x,y)   (((x)*in_width)   + (y))
 #define KERN_DIM(x,y) (((x)*kern_width) + (y))
-#define OUT_DIM(x,y)  (((x)*IMG_WIDTH)  + (y))
-
-/**
- * Padding
- * I = img, P = padding
- * P P P P
- * P I I P
- * P I I P
- * P P P P
- *
- * Padded rows/cols depend on the kernel width and height.
- */
+#define DIM(x,y)      (((x)*IMG_WIDTH)  + (y))
 
 void convolution(TYPE *input_image, TYPE *kernel, TYPE *output_image,
         int kern_width, int kern_height) {
-    const int in_height = IMG_HEIGHT + kern_height - 1;
-    const int in_width = IMG_WIDTH + kern_width - 1;
+    const int start_in_i = -((kern_height - 1) / 2);
+    const int start_in_j = -((kern_width  - 1) / 2);
 
-    for (int in_i = 0, out_i = 0; in_i < IMG_HEIGHT; in_i++, out_i++) {
-        loop: for (int in_j = 0, out_j = 0; in_j < IMG_WIDTH; in_j++, out_j++) {
+    for (int in_i = start_in_i, out_i = 0; out_i < IMG_HEIGHT; in_i++, out_i++) {
+        loop: for (int in_j = start_in_j, out_j = 0; out_j < IMG_WIDTH; in_j++, out_j++) {
             float partial_sum = 0;
 
             for (int ki = 0; ki < kern_height; ki++) {
+                bool valid_row = ((in_i+ki) >= 0) && ((in_i+ki) < IMG_HEIGHT);
+
                 for (int kj = 0; kj < kern_width; kj++) {
-                    partial_sum += input_image[IN_DIM(in_i+ki, in_j+kj)] * \
-                                   kernel[KERN_DIM(ki, kj)];
+                    bool valid_col = ((in_j+kj) >= 0) && ((in_j+kj) < IMG_WIDTH);
+
+                    float in_val = (valid_row && valid_col) ?
+                            input_image[DIM(in_i+ki, in_j+kj)] : 0;
+
+                    partial_sum += in_val * kernel[KERN_DIM(ki, kj)];
                 }
             }
 
-            output_image[OUT_DIM(out_i, out_j)] = partial_sum;
+            output_image[DIM(out_i, out_j)] = partial_sum;
         }
     }
 }

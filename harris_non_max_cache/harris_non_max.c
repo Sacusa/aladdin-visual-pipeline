@@ -23,13 +23,17 @@ int test_output(OUT_TYPE *max_values) {
         for (int j = 0; j < IMG_WIDTH; j += 3) {
             for (int ii = 0; ii < 3; ii++) {
                 for (int jj = 0; jj < 3; jj++) {
-                    if ((ii == 0) && (jj == 0)) {
-                        if (max_values[DIM(i+ii,j+jj)] != 255) {
-                            num_failures++;
-                        }
-                    } else {
-                        if (max_values[DIM(i+ii,j+jj)] != 0) {
-                            num_failures++;
+                    int x = i+ii, y = j+jj;
+
+                    if ((x < IMG_HEIGHT) && (y < IMG_WIDTH)) {
+                        if ((ii == 0) && (jj == 0)) {
+                            if (max_values[DIM(x,y)] != 255) {
+                                num_failures++;
+                            }
+                        } else {
+                            if (max_values[DIM(x,y)] != 0) {
+                                num_failures++;
+                            }
                         }
                     }
                 }
@@ -47,10 +51,9 @@ int main() {
     const int harris_response_size = sizeof(IN_TYPE) * NUM_PIXELS;
     const int max_values_size = sizeof(OUT_TYPE) * NUM_PIXELS;
 
-    int err = posix_memalign(
-        (void**)&harris_response, CACHELINE_SIZE, harris_response_size);
-    err |= posix_memalign(
-        (void**)&max_values, CACHELINE_SIZE, max_values_size);
+    int err = 0;
+    err |= posix_memalign((void**)&harris_response, CACHELINE_SIZE, harris_response_size);
+    err |= posix_memalign((void**)&max_values,      CACHELINE_SIZE, max_values_size);
     assert(err == 0 && "Failed to allocate memory!");
 
     IN_TYPE values[3][3] = {{10, 5, 5}, {5, 5, 5}, {5, 5, 5}};
@@ -58,7 +61,11 @@ int main() {
         for (int j = 0; j < IMG_WIDTH; j += 3) {
             for (int ii = 0; ii < 3; ii++) {
                 for (int jj = 0; jj < 3; jj++) {
-                    harris_response[DIM(i+ii, j+jj)] = values[ii][jj];
+                    int x = i+ii, y = j+jj;
+
+                    if ((x < IMG_HEIGHT) && (y < IMG_WIDTH)) {
+                        harris_response[DIM(x, y)] = values[ii][jj];
+                    }
                 }
             }
         }
