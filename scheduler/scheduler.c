@@ -1,5 +1,6 @@
 #include "scheduler.h"
 #include "canny_non_max.h"
+#include "convolution.h"
 #include "edge_tracking.h"
 #include "elem_matrix.h"
 #include "grayscale.h"
@@ -16,6 +17,7 @@ volatile int *run_accelerator(int acc_id, task_struct *req, int device_id)
 {
     switch (acc_id) {
         case ACC_CANNY_NON_MAX:  return run_canny_non_max(req, device_id);
+        case ACC_CONVOLUTION:    return run_convolution(req, device_id);
         case ACC_EDGE_TRACKING:  return run_edge_tracking(req, device_id);
         case ACC_ELEM_MATRIX:    return run_elem_matrix(req, device_id);
         case ACC_GRAYSCALE:      return run_grayscale(req, device_id);
@@ -49,6 +51,30 @@ volatile int *run_canny_non_max(task_struct *req, int device_id)
     return retval;
 }
 
+volatile int *run_convolution(task_struct *req, int device_id)
+{
+    volatile int *retval = NULL;
+    convolution_args *args = (convolution_args*) req->acc_args;
+
+#ifdef GEM5_HARNESS
+    mapArrayToAccelerator(device_id, "input_image",  args->input_image,  NUM_PIXELS*4);
+    mapArrayToAccelerator(device_id, "kernel",       args->kernel,
+            args->kern_width * args->kern_height * 4);
+    mapArrayToAccelerator(device_id, "output_image", args->output_image, NUM_PIXELS*4);
+    retval = invokeAcceleratorAndReturn(device_id);
+#else
+#ifdef LLVM_TRACE
+    char *buffer = malloc(50);
+    sprintf(buffer, "convolution_%d_trace.gz", device_id % MAX_ACC_INSTANCES);
+    llvmtracer_set_trace_name(buffer);
+#endif
+    convolution(args->input_image, args->kernel, args->output_image,
+            args->kern_width, args->kern_height);
+#endif
+
+    return retval;
+}
+
 volatile int *run_edge_tracking(task_struct *req, int device_id)
 {
     volatile int *retval = NULL;
@@ -59,12 +85,23 @@ volatile int *run_edge_tracking(task_struct *req, int device_id)
     mapArrayToAccelerator(device_id, "output_image", args->output_image, NUM_PIXELS);
     retval = invokeAcceleratorAndReturn(device_id);
 #else
+    uint8_t *ii_acc = NULL, *oi_acc = NULL;
+    int err = 0;
+
+    err |= posix_memalign((void**)&ii_acc, CACHELINE_SIZE, NUM_PIXELS);
+    err |= posix_memalign((void**)&oi_acc, CACHELINE_SIZE, NUM_PIXELS);
+    assert(err == 0 && "Failed to allocate memory");
+
 #ifdef LLVM_TRACE
     char *buffer = malloc(50);
     sprintf(buffer, "edge_tracking_%d_trace.gz", device_id % MAX_ACC_INSTANCES);
     llvmtracer_set_trace_name(buffer);
 #endif
-    edge_tracking(args->input_image, args->thr_weak, args->thr_strong, args->output_image);
+    edge_tracking(args->input_image, ii_acc, args->thr_weak, args->thr_strong,
+            args->output_image, oi_acc);
+
+    free(ii_acc);
+    free(oi_acc);
 #endif
 
     return retval;
@@ -191,6 +228,7 @@ int get_device_id(int acc_id, int instance)
 void schedule(int num_levels, int *num_reqs, task_struct *acc_params[MAX_LEVELS][MAX_REQS])
 {
     acc_instances[ACC_CANNY_NON_MAX]  = 1;
+    acc_instances[ACC_CONVOLUTION]    = 1;
     acc_instances[ACC_EDGE_TRACKING]  = 1;
     acc_instances[ACC_ELEM_MATRIX]    = 6;
     acc_instances[ACC_GRAYSCALE]      = 1;

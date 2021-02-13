@@ -26,6 +26,7 @@
  */
 enum acc_ids_t {
     ACC_CANNY_NON_MAX = 0,
+    ACC_CONVOLUTION,
     ACC_EDGE_TRACKING,
     ACC_ELEM_MATRIX,
     ACC_GRAYSCALE,
@@ -66,6 +67,14 @@ typedef struct {
 } canny_non_max_args;
 
 typedef struct {
+    float *input_image;
+    float *kernel;
+    float *output_image;
+    int kern_width;
+    int kern_height;
+} convolution_args;
+
+typedef struct {
     uint8_t *input_image;
     uint8_t thr_weak;
     uint8_t thr_strong;
@@ -82,7 +91,7 @@ typedef struct {
 
 typedef struct {
     uint8_t *input_image;
-    uint8_t *output_image;
+    float *output_image;
 } grayscale_args;
 
 typedef struct {
@@ -96,20 +105,11 @@ typedef struct {
 } isp_args;
 
 /**
- * Accelerator specific data structures
- */
-enum operation_t {
-    ADD, SUB,
-    MUL, DIV,
-    SQR, SQRT,
-    ATAN2
-};
-
-/**
  * Functions for running each accelerator
  */
 volatile int *run_accelerator(int acc_id, task_struct *req, int device_id);
 volatile int *run_canny_non_max(task_struct *req, int device_id);
+volatile int *run_convolution(task_struct *req, int device_id);
 volatile int *run_edge_tracking(task_struct *req, int device_id);
 volatile int *run_elem_matrix(task_struct *req, int device_id);
 volatile int *run_grayscale(task_struct *req, int device_id);

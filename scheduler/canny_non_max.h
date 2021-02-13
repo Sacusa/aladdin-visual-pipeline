@@ -1,7 +1,3 @@
-/**
- * No padding required
- */
-
 void canny_non_max(float *hypotenuse, float *theta, uint8_t *result) {
     int max_height = IMG_HEIGHT - 1, max_width = IMG_WIDTH - 1;
 
@@ -39,7 +35,7 @@ void canny_non_max(float *hypotenuse, float *theta, uint8_t *result) {
             }
 
             if ((hypotenuse[index] >= q) && (hypotenuse[index] >= r)) {
-                result[index] = (uint8_t) hypotenuse[index];
+                result[index] = (float) hypotenuse[index];
             }
             else {
                 result[index] = 0;
