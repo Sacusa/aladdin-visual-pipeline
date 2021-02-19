@@ -7,8 +7,8 @@
 
 #include "scheduler.h"
 
-#define NUM_IMAGES 10
-#define NUM_LEVELS (7 + (NUM_IMAGES-1))
+#define NUM_IMAGES 1
+#define NUM_LEVELS (9 + (NUM_IMAGES-1))
 
 typedef struct {
     // ISP
@@ -16,12 +16,14 @@ typedef struct {
     uint8_t *isp_img;
 
     // Grayscale
-    uint8_t *grayscale_img;
+    float *grayscale_img;
 
     // Noise reduction
+    float *gauss_kernel;
     float *denoise_img;
 
     // Gradient calculation
+    float *K_x, *K_y;
     float *I_x, *I_y, *I_xx, *I_yy, *I_xx_yy;
     float *gradient, *theta;
 
@@ -65,7 +67,7 @@ void convert_to_grayscale(image_data_t *img, int level)
 
     err |= posix_memalign((void**)&task, CACHELINE_SIZE, sizeof(task_struct));
     err |= posix_memalign((void**)&args, CACHELINE_SIZE, sizeof(grayscale_args));
-    err |= posix_memalign((void**)&img->grayscale_img, CACHELINE_SIZE, NUM_PIXELS);
+    err |= posix_memalign((void**)&img->grayscale_img, CACHELINE_SIZE, NUM_PIXELS*4);
     assert(err == 0 && "Failed to allocate memory");
 
     args->input_image = img->isp_img;
@@ -78,29 +80,63 @@ void convert_to_grayscale(image_data_t *img, int level)
     pipeline[level][req_index[level]++] = task;
 }
 
-void noise_reduction(image_data_t *img)
+void noise_reduction(image_data_t *img, int level)
 {
+    task_struct *task;
+    convolution_args *args;
     int err = 0;
 
-    err |= posix_memalign((void**)&img->denoise_img, CACHELINE_SIZE, NUM_PIXELS*4);
+    err |= posix_memalign((void**)&task, CACHELINE_SIZE, sizeof(task_struct));
+    err |= posix_memalign((void**)&args, CACHELINE_SIZE, sizeof(convolution_args));
+    err |= posix_memalign((void**)&img->gauss_kernel, CACHELINE_SIZE, 100);
+    err |= posix_memalign((void**)&img->denoise_img,  CACHELINE_SIZE, NUM_PIXELS*4);
     assert(err == 0 && "Failed to allocate memory");
 
-    // TODO: Convolution
-    for (int i = 0; i < NUM_PIXELS; i++) {
-        img->denoise_img[i] = (float) img->grayscale_img[i];
+    img->gauss_kernel[0]  =  1; img->gauss_kernel[1]  =  4; img->gauss_kernel[2]  =  7;
+    img->gauss_kernel[3]  =  4; img->gauss_kernel[4]  =  1;
+    img->gauss_kernel[5]  =  4; img->gauss_kernel[6]  = 16; img->gauss_kernel[7]  = 26;
+    img->gauss_kernel[8]  = 16; img->gauss_kernel[9]  =  4;
+    img->gauss_kernel[10] =  7; img->gauss_kernel[11] = 26; img->gauss_kernel[12] = 41;
+    img->gauss_kernel[13] = 26; img->gauss_kernel[14] =  7;
+    img->gauss_kernel[15] =  4; img->gauss_kernel[16] = 16; img->gauss_kernel[17] = 26;
+    img->gauss_kernel[18] = 16; img->gauss_kernel[19] =  4;
+    img->gauss_kernel[20] =  1; img->gauss_kernel[21] =  4; img->gauss_kernel[22] =  7;
+    img->gauss_kernel[23] =  4; img->gauss_kernel[24] =  1;
+    for (int i = 0; i < 25; i++) {
+        img->gauss_kernel[i] /= 273;
     }
+
+    args->input_image = img->grayscale_img;
+    args->kernel = img->gauss_kernel;
+    args->output_image = img->denoise_img;
+    args->kern_width = 5;
+    args->kern_height = 5;
+
+    task->acc_id = ACC_CONVOLUTION;
+    task->acc_args = (void*) args;
+    task->state = REQ_STATE_WAITING;
+
+    pipeline[level][req_index[level]++] = task;
 }
 
 void gradient_calculation(image_data_t *img, int level)
 {
-    task_struct *task[5];
-    elem_matrix_args *args[5];
+    task_struct *task[7];
+    convolution_args *c_args[2];
+    elem_matrix_args *em_args[5];
     int size = NUM_PIXELS * 4, err = 0;
 
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 7; i++) {
         err |= posix_memalign((void**)&task[i], CACHELINE_SIZE, sizeof(task_struct));
-        err |= posix_memalign((void**)&args[i], CACHELINE_SIZE, sizeof(elem_matrix_args));
     }
+    for (int i = 0; i < 2; i++) {
+        err |= posix_memalign((void**)&c_args[i], CACHELINE_SIZE, sizeof(convolution_args));
+    }
+    for (int i = 0; i < 5; i++) {
+        err |= posix_memalign((void**)&em_args[i], CACHELINE_SIZE, sizeof(elem_matrix_args));
+    }
+    err |= posix_memalign((void**)&img->K_x,  CACHELINE_SIZE, 36);
+    err |= posix_memalign((void**)&img->K_y,  CACHELINE_SIZE, 36);
     err |= posix_memalign((void**)&img->I_x,  CACHELINE_SIZE, size);
     err |= posix_memalign((void**)&img->I_y,  CACHELINE_SIZE, size);
     err |= posix_memalign((void**)&img->I_xx, CACHELINE_SIZE, size);
@@ -110,53 +146,77 @@ void gradient_calculation(image_data_t *img, int level)
     err |= posix_memalign((void**)&img->theta,    CACHELINE_SIZE, size);
     assert(err == 0 && "Failed to allocate memory");
 
-    // TODO: Convolution
-    memset(img->I_x, 0, size);
-    memset(img->I_y, 0, size);
+    img->K_x[0] = -1; img->K_x[1] = 0; img->K_x[2] = 1;
+    img->K_x[3] = -2; img->K_x[4] = 0; img->K_x[5] = 2;
+    img->K_x[6] = -1; img->K_x[7] = 0; img->K_x[8] = 1;
 
-    args[0]->arg1 = img->I_x;
-    args[0]->arg2 = NULL;
-    args[0]->result = img->I_xx;
-    args[0]->is_arg2_scalar = 0;
-    args[0]->op = SQR;
+    img->K_y[0] =  1; img->K_y[1] =  2; img->K_y[2] =  1;
+    img->K_y[3] =  0; img->K_y[4] =  0; img->K_y[5] =  0;
+    img->K_y[6] = -1; img->K_y[7] = -2; img->K_y[8] = -1;
 
-    args[1]->arg1 = img->I_y;
-    args[1]->arg2 = NULL;
-    args[1]->result = img->I_yy;
-    args[1]->is_arg2_scalar = 0;
-    args[1]->op = SQR;
+    c_args[0]->input_image = img->denoise_img;
+    c_args[0]->kernel = img->K_x;
+    c_args[0]->output_image = img->I_x;
+    c_args[0]->kern_width = 3;
+    c_args[0]->kern_height = 3;
 
-    args[2]->arg1 = img->I_y;
-    args[2]->arg2 = img->I_x;
-    args[2]->result = img->theta;
-    args[2]->is_arg2_scalar = 0;
-    args[2]->op = ATAN2;
+    c_args[1]->input_image = img->denoise_img;
+    c_args[1]->kernel = img->K_y;
+    c_args[1]->output_image = img->I_y;
+    c_args[1]->kern_width = 3;
+    c_args[1]->kern_height = 3;
 
-    args[3]->arg1 = img->I_xx;
-    args[3]->arg2 = img->I_yy;
-    args[3]->result = img->I_xx_yy;
-    args[3]->is_arg2_scalar = 0;
-    args[3]->op = ADD;
+    em_args[0]->arg1 = img->I_x;
+    em_args[0]->arg2 = NULL;
+    em_args[0]->result = img->I_xx;
+    em_args[0]->is_arg2_scalar = 0;
+    em_args[0]->op = SQR;
 
-    args[4]->arg1 = img->I_xx_yy;
-    args[4]->arg2 = NULL;
-    args[4]->result = img->gradient;
-    args[4]->is_arg2_scalar = 0;
-    args[4]->op = SQRT;
+    em_args[1]->arg1 = img->I_y;
+    em_args[1]->arg2 = NULL;
+    em_args[1]->result = img->I_yy;
+    em_args[1]->is_arg2_scalar = 0;
+    em_args[1]->op = SQR;
 
-    for (int i = 0; i < 5; i++) {
+    em_args[2]->arg1 = img->I_y;
+    em_args[2]->arg2 = img->I_x;
+    em_args[2]->result = img->theta;
+    em_args[2]->is_arg2_scalar = 0;
+    em_args[2]->op = ATAN2;
+
+    em_args[3]->arg1 = img->I_xx;
+    em_args[3]->arg2 = img->I_yy;
+    em_args[3]->result = img->I_xx_yy;
+    em_args[3]->is_arg2_scalar = 0;
+    em_args[3]->op = ADD;
+
+    em_args[4]->arg1 = img->I_xx_yy;
+    em_args[4]->arg2 = NULL;
+    em_args[4]->result = img->gradient;
+    em_args[4]->is_arg2_scalar = 0;
+    em_args[4]->op = SQRT;
+
+    for (int i = 0; i < 2; i++) {
+        task[i]->acc_id = ACC_CONVOLUTION;
+        task[i]->acc_args = (void*) c_args[i];
+        task[i]->state = REQ_STATE_WAITING;
+    }
+    for (int i = 2; i < 7; i++) {
         task[i]->acc_id = ACC_ELEM_MATRIX;
-        task[i]->acc_args = (void*) args[i];
+        task[i]->acc_args = (void*) em_args[i-2];
         task[i]->state = REQ_STATE_WAITING;
     }
 
     pipeline[level][req_index[level]++] = task[0];
     pipeline[level][req_index[level]++] = task[1];
+    level++;
     pipeline[level][req_index[level]++] = task[2];
-    level++;
     pipeline[level][req_index[level]++] = task[3];
-    level++;
     pipeline[level][req_index[level]++] = task[4];
+    level++;
+    pipeline[level][req_index[level]++] = task[5];
+    level++;
+    pipeline[level][req_index[level]++] = task[6];
 }
 
 void non_max_suppression(image_data_t *img, int level)
@@ -218,16 +278,16 @@ int main()
         convert_to_grayscale(&imgs[i], i+1);
 
         // Step 2: Noise reduction
-        noise_reduction(&imgs[i]);
+        noise_reduction(&imgs[i], i+2);
 
         // Step 3: Gradient calculation
-        gradient_calculation(&imgs[i], i+2);
+        gradient_calculation(&imgs[i], i+3);
 
         // Step 4: Non-maximum suppression
-        non_max_suppression(&imgs[i], i+5);
+        non_max_suppression(&imgs[i], i+7);
 
         // Steps 5 and 6: Double threshold and edge tracking by hysteresis
-        thr_and_edge_tracking(&imgs[i], i+6);
+        thr_and_edge_tracking(&imgs[i], i+8);
     }
 
     schedule(NUM_LEVELS, req_index, pipeline);

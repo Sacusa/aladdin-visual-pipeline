@@ -8,13 +8,6 @@ float em_sqrt(float x);
 double em_atan(double x);
 double em_atan2(double y, double x);
 
-enum operation {
-    ADD, SUB,
-    MUL, DIV,
-    SQR, SQRT,
-    ATAN2
-};
-
 void elem_matrix(float *arg1, float *arg2, float *result,
         uint8_t is_arg2_scalar, uint8_t op) {
     loop: for (int i = 0; i < NUM_PIXELS; i++) {

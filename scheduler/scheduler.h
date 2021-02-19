@@ -104,6 +104,18 @@ typedef struct {
     uint8_t *output_img;
 } isp_args;
 
+/*
+ * Accelerator specific structures
+ */
+
+// operation for elem_matrix
+enum operation {
+    ADD, SUB,
+    MUL, DIV,
+    SQR, SQRT,
+    ATAN2
+};
+
 /**
  * Functions for running each accelerator
  */

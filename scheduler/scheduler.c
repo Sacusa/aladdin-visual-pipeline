@@ -81,8 +81,8 @@ volatile int *run_edge_tracking(task_struct *req, int device_id)
     edge_tracking_args *args = (edge_tracking_args*) req->acc_args;
 
 #ifdef GEM5_HARNESS
-    mapArrayToAccelerator(device_id, "input_image",  args->input_image,  NUM_PIXELS);
-    mapArrayToAccelerator(device_id, "output_image", args->output_image, NUM_PIXELS);
+    mapArrayToAccelerator(device_id, "input_image_host",  args->input_image,  NUM_PIXELS);
+    mapArrayToAccelerator(device_id, "output_image_host", args->output_image, NUM_PIXELS);
     retval = invokeAcceleratorAndReturn(device_id);
 #else
     uint8_t *ii_acc = NULL, *oi_acc = NULL;

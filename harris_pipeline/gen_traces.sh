@@ -8,6 +8,7 @@ gen_trace () {
     ./harris-instrumented
 }
 
+gen_trace convolution
 gen_trace elem_matrix
 gen_trace grayscale
 gen_trace harris_non_max

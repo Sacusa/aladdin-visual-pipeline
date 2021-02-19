@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-bmk_home=${ALADDIN_HOME}/visual-pipeline/canny_pipeline
+bmk_home=${ALADDIN_HOME}/visual-pipeline/deblur_pipeline
 gem5_dir=${ALADDIN_HOME}/../..
 
 ${gem5_dir}/build/X86/gem5.opt \
@@ -16,6 +16,6 @@ ${gem5_dir}/build/X86/gem5.opt \
   --caches \
   --cacheline_size=64 \
   --accel_cfg_file=${bmk_home}/gem5.cfg \
-  -c ${bmk_home}/canny-gem5-accel \
+  -c ${bmk_home}/deblur-gem5-accel \
   | gzip -c > stdout.gz
 
